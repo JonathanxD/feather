@@ -3,7 +3,7 @@ use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::{copy, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use zip::ZipArchive;
 
@@ -82,8 +82,56 @@ fn download<P: AsRef<Path>>(url: &str, server: P) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn java_home_bin_path() -> Option<PathBuf> {
+    env::var("JAVA_HOME")
+        .map(|java_home| PathBuf::from(java_home).join("bin").join("java"))
+        .ok()
+}
+
+fn find_java() -> anyhow::Result<PathBuf> {
+    let java_paths = [
+        "/bin/java",
+        "/usr/bin/java",
+        "/usr/local/bin/java",
+        "/usr/sbin/java",
+    ];
+
+    for java_path_str in &java_paths {
+        let path = Path::new(java_path_str);
+
+        if path.exists() {
+            return Ok(path.to_path_buf());
+        }
+    }
+
+    let java_from_java_home = java_home_bin_path();
+
+    match java_from_java_home {
+        Some(java_bin) => {
+            if !java_bin.exists() {
+                let mut ancestors = java_bin.ancestors();
+                ancestors.next();
+                ancestors.next();
+                anyhow::bail!(
+                "JAVA_HOME is defined as {}, but Java binary could not be find in the binary path: {}.",
+                ancestors.next().unwrap().display(),
+                java_bin.display()
+            )
+            } else {
+                Ok(java_bin)
+            }
+        }
+        None => anyhow::bail!(
+            "Please install Java and define env var 'JAVA_HOME' pointing to installation root path. Java could not be found in any of known paths: {}.",
+            java_paths.join(", ")
+        )
+    }
+}
+
 fn generate<P: AsRef<Path>>(working: P) -> anyhow::Result<()> {
-    let status = Command::new("java")
+    let java_bin = find_java()?;
+
+    let status = Command::new(java_bin)
         .current_dir(working.as_ref())
         .args(&["-cp", "server.jar", "net.minecraft.data.Main", "--reports"])
         .status()?;
