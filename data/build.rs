@@ -113,10 +113,10 @@ fn find_java() -> anyhow::Result<PathBuf> {
                 ancestors.next();
                 ancestors.next();
                 anyhow::bail!(
-                "JAVA_HOME is defined as {}, but Java binary could not be find in the binary path: {}.",
-                ancestors.next().unwrap().display(),
-                java_bin.display()
-            )
+                    "JAVA_HOME is defined as {}, but Java binary could not be find in the binary path: {}.",
+                    ancestors.next().unwrap().display(),
+                    java_bin.display()
+                )
             } else {
                 Ok(java_bin)
             }
